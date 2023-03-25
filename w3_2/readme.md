@@ -1,0 +1,1 @@
+YIToken deployed to 0x39DD8c9eE27e44aBCAE0D495CA82b4e78a7c0a59（可升级w3-2）
