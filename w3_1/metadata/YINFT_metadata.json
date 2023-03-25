@@ -1,0 +1,16 @@
+{
+    "title": "YINFT",
+    "description": "测试NFT=====",
+    "image": "ipfs://QmRfNpwAADG3t89vc8GVmZdYZXGCwgHNJc1qmjJzxFK8uQ",
+    "attributes": [
+        {
+            "trait_type": "编号",
+            "value": "300001"
+        },
+        {
+            "trait_type": "昵称",
+            "value": "V神"
+        }
+    ],
+    "version": "2"
+}
