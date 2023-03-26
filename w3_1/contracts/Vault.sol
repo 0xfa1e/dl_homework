@@ -41,7 +41,7 @@ contract Vault {
         if(balanceOfCurrency[depositor][currency] < amount) revert LowBalance();
 
         ERC20 erc = ERC20(currency);
-        erc.transfer(depositor,amount);
         balanceOfCurrency[depositor][currency] -= amount;
+        erc.transfer(depositor,amount);
     }
 }
