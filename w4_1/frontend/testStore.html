@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="en">
+ 
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>webapp</title>
+  <style>
+    body div {
+      margin-bottom: 30px;
+ 
+    }
+ 
+    .wallet, .interact_to_contract{
+      width: 450px;
+      margin-top: 30px;
+ 
+    }
+    .wallet button{
+      width: 100%;
+    }
+ 
+ 
+    .dogreet{
+      width: 100%;
+    }
+  </style>
+</head>
+ 
+<body>
+  <div class="wallet">
+    <button onclick="connect_to_metamask()">连接metamask钱包</button><br /><br>
+    账户地址：<span id="txt_curent_addr"></span><br /><br>
+    账户余额：<span id="txt_balance"></span><br />
+  </div>
+  <hr style="border:solid #987cb9;" width="100%">
+ 
+  <div class="interact_to_contract">
+    <input id="input_store"><button onclick="deposit()">deposit</button><br/><br>
+    
+    <button onclick="permitDeposit()" class="dogreet">permitDeposit</button><br /><br>
+    <button onclick="withdrew()" class="dogreet">withdrew</button><br /><br>
+    <span id="retrieve_info"></span>
+  </div>
+ 
+ 
+  <div class="interact_to_contract">
+    <button onclick="mint()">Mint</button><br/><br>    
+    目标地址：<input id="transfer_to_address"> <br/><br>      
+    tokenid：<input id="transfer_tokenid"><br/><br>
+    <button onclick="transfer()" class="dogreet">Transfer</button><br /><br>
+    <span id="nft_retrieve_info"></span>
+  </div>
+ 
+</body>
+ 
+</html>
+ 
+<script src="../libs/ethers-5.2.umd.min.js" type="application/javascript"></script>
+ 
+<script>
+ 
+  //创建一个Provider
+  const provider = new ethers.providers.Web3Provider(window.ethereum);
+  const signer=provider.getSigner();
+  const vault_addr="0xD4bfe2c83Ad6b1f9C7bC36E19f992456326438a0";
+  const yitoken_addr = "0x5c0f4a95CB84ABBc6dE0C241e1253Ae31b240878";
+  const yiNFT_addr = "0x0D2FEbc184A055fD86b87dca10b600135D7CCFD6";
+ 
+ 
+  //Vaultr合约的ABI
+  const vaultAbi = [
+    {
+      "inputs": [],
+      "name": "LowBalance",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "TransferFromError",
+      "type": "error"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "depositor",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "currency",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "Deposited",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "depositor",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "currency",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "PermitDeposited",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "depositor",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "currency",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "Withdrewed",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "depositor",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "currency",
+          "type": "address"
+        }
+      ],
+      "name": "balanceOf",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "balanceOfCurrency",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "currency",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "deposit",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "lock",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "currency",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "deadline",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint8",
+          "name": "v",
+          "type": "uint8"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "r",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "s",
+          "type": "bytes32"
+        }
+      ],
+      "name": "permitDeposit",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "currency",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "withdrew",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ];
+  const yitokenAbi = [
+    {
+      "inputs": [],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "spender",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "value",
+          "type": "uint256"
+        }
+      ],
+      "name": "Approval",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "from",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "to",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "value",
+          "type": "uint256"
+        }
+      ],
+      "name": "Transfer",
+      "type": "event"
+    },
+    {
+      "inputs": [],
+      "name": "DOMAIN_SEPARATOR",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "spender",
+          "type": "address"
+        }
+      ],
+      "name": "allowance",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "spender",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "approve",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "account",
+          "type": "address"
+        }
+      ],
+      "name": "balanceOf",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "decimals",
+      "outputs": [
+        {
+          "internalType": "uint8",
+          "name": "",
+          "type": "uint8"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "spender",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "subtractedValue",
+          "type": "uint256"
+        }
+      ],
+      "name": "decreaseAllowance",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "spender",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "addedValue",
+          "type": "uint256"
+        }
+      ],
+      "name": "increaseAllowance",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "name",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
+        }
+      ],
+      "name": "nonces",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "spender",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "value",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "deadline",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint8",
+          "name": "v",
+          "type": "uint8"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "r",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "s",
+          "type": "bytes32"
+        }
+      ],
+      "name": "permit",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "symbol",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "totalSupply",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "to",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "transfer",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "from",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "to",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "transferFrom",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ];
+  const yiNFTAbi = [
+    {
+      "inputs": [],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [],
+      "name": "InvalidTokenID",
+      "type": "error"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "approved",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        }
+      ],
+      "name": "Approval",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "operator",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "bool",
+          "name": "approved",
+          "type": "bool"
+        }
+      ],
+      "name": "ApprovalForAll",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "to",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "tokenURI",
+          "type": "string"
+        }
+      ],
+      "name": "Minted",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "from",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "to",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        }
+      ],
+      "name": "Transfer",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "to",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        }
+      ],
+      "name": "approve",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
+        }
+      ],
+      "name": "balanceOf",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        }
+      ],
+      "name": "getApproved",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "operator",
+          "type": "address"
+        }
+      ],
+      "name": "isApprovedForAll",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "to",
+          "type": "address"
+        },
+        {
+          "internalType": "string",
+          "name": "tokenURI",
+          "type": "string"
+        }
+      ],
+      "name": "mint",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "name",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        }
+      ],
+      "name": "ownerOf",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "from",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "to",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        }
+      ],
+      "name": "safeTransferFrom",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "from",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "to",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bytes",
+          "name": "data",
+          "type": "bytes"
+        }
+      ],
+      "name": "safeTransferFrom",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "operator",
+          "type": "address"
+        },
+        {
+          "internalType": "bool",
+          "name": "approved",
+          "type": "bool"
+        }
+      ],
+      "name": "setApprovalForAll",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes4",
+          "name": "interfaceId",
+          "type": "bytes4"
+        }
+      ],
+      "name": "supportsInterface",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "symbol",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        }
+      ],
+      "name": "tokenURI",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "totalMinted",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "totalSupply",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "from",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "to",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        }
+      ],
+      "name": "transferFrom",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ];
+  /**
+   * 连接metamask钱包，获取余额
+   */
+  async function connect_to_metamask() {
+    console.log("向钱包发送授权请求");
+    //向钱包发送授权请求
+    const accounts = await provider.send("eth_requestAccounts", []);
+ 
+    console.log("所有账户地址：", accounts);
+    //获取账户余额信息
+    if (accounts && accounts.length > 0) {
+      let myAccountAddr = accounts[0];
+      console.log("当前账户地址：", myAccountAddr);
+
+      const yitoken = new ethers.Contract(yitoken_addr, yitokenAbi, signer);
+
+      let balance = ethers.utils.formatEther(await yitoken.balanceOf(myAccountAddr));
+      console.log("金额：", balance);
+      let network = await provider.getNetwork();
+      console.log("Chain Info;", network.chainId, network.name);
+ 
+      //显示在界面上；
+      document.getElementById('txt_curent_addr').innerText = myAccountAddr;
+      document.getElementById('txt_balance').innerText = balance;
+ 
+ 
+    }
+  }
+ 
+ 
+  /**
+   *访问合约permitDeposit
+   */
+  async function permitDeposit(){
+    let inputStr = document.getElementById('input_store').value;
+    if (inputStr == null || inputStr == "" || !(/(^[1-9]\d*$)/.test(inputStr))) {
+        alert("请输入正确的存款金额~");
+        return false;
+    }
+
+    let inputAmount=ethers.utils.parseUnits(inputStr);
+
+    console.log(inputAmount);
+
+    const signer=provider.getSigner();
+    const vault = new ethers.Contract(vault_addr, vaultAbi, signer); 
+    const yitoken = new ethers.Contract(yitoken_addr, yitokenAbi, signer);
+    const {v, r, s,deadline} = await sig(signer,yitoken,vault,inputAmount);
+ 
+    //与合约交互；
+    // let inputAmount = ethers.utils.parseEther(str);
+    const re = await vault.permitDeposit(yitoken_addr,inputAmount,deadline,v, r, s);
+    // document.getElementById("retrieve_info").innerText='number:'+re;
+ // 监控事件，对结果进行处理
+    vault.on("PermitDeposited",(depositor,currency,amount)=>{
+      document.getElementById("retrieve_info").innerText='PermitDepositeds:'+depositor+ '  '+currency+ '  '+ethers.utils.formatEther(amount);
+      });
+  }
+ 
+  /*
+    修改合约的状态变量
+  */
+  async function deposit(){
+    let inputStr = document.getElementById('input_store').value;
+    if (inputStr == null || inputStr == "" || !(/(^[1-9]\d*$)/.test(inputStr))) {
+        alert("请输入正确的存款金额~");
+        return false;
+    }
+    let inputAmount=ethers.utils.parseUnits(inputStr);
+    // let inputAmount = ethers.utils.parseEther(str);
+    console.log(inputAmount);
+ 
+    const signer=provider.getSigner();
+    const vault = new ethers.Contract(vault_addr, vaultAbi, signer); 
+    const yitoken = new ethers.Contract(yitoken_addr, yitokenAbi, signer);
+    await yitoken.approve(vault_addr,inputAmount);
+    //与合约交互；
+    await  vault.deposit(yitoken_addr,inputAmount);
+ 
+// 监控事件，对结果进行处理
+    vault.on("Deposited",(depositor,currency,amount)=>{
+      document.getElementById("retrieve_info").innerText='Deposited:'+depositor+ '  '+currency+ '  '+ethers.utils.formatEther(amount);
+      });
+  
+  }
+
+  
+  async function sig(otherAccount, yi, vault, amount) {
+      const deadline = Math.ceil(Date.now() / 1000) + parseInt(2000000 * 60);
+      const signerAddress = await otherAccount.getAddress();
+      const nonce = await yi.nonces(signerAddress);
+      const name = await yi.name();
+      const chainId = await otherAccount.getChainId();
+      // console.log(nonce);
+      // console.log(deadline);
+      const domain = {
+          name: name,
+          version: '1',
+          chainId: chainId,
+          verifyingContract: yi.address
+      }
+      const types = {
+          Permit: [
+            {name: "owner", type: "address"},
+            {name: "spender", type: "address"},
+            {name: "value", type: "uint256"},
+            {name: "nonce", type: "uint256"},
+            {name: "deadline", type: "uint256"}
+          ]
+      }
+      const message = {
+          owner: signerAddress,
+          spender: vault.address,
+          value: amount,
+          nonce: nonce,
+          deadline: deadline
+      }
+      const signature = await otherAccount._signTypedData(domain, types, message);
+      // console.log(signature);
+
+      const {v, r, s} = ethers.utils.splitSignature(signature);
+      // console.log(v, r, s);
+  
+      return  {v, r, s, deadline};
+    }
+ 
+ /**
+   *访问合约withdrew
+   */
+   async function withdrew(){
+    let inputStr = document.getElementById('input_store').value;
+    if (inputStr == null || inputStr == "" || !(/(^[1-9]\d*$)/.test(inputStr))) {
+        alert("请输入正确的存款金额~");
+        return false;
+    }
+
+    let inputAmount=ethers.utils.parseUnits(inputStr);
+
+    console.log(inputAmount);
+
+    const signer=provider.getSigner();
+    const vault = new ethers.Contract(vault_addr, vaultAbi, signer); 
+    // const yitoken = new ethers.Contract(yitoken_addr, yitokenAbi, signer);
+    // const {v, r, s,deadline} = await sig(signer,yitoken,vault,inputAmount);
+ 
+    //与合约交互；
+    // let inputAmount = ethers.utils.parseEther(str);
+    const re = await vault.withdrew(yitoken_addr,inputAmount);
+    // document.getElementById("retrieve_info").innerText='number:'+re;
+ // 监控事件，对结果进行处理
+    vault.on("Withdrewed",(depositor,currency,amount)=>{
+      document.getElementById("retrieve_info").innerText='Withdrewed:'+depositor+ '  '+currency+ '  '+ethers.utils.formatEther(amount);
+      });
+  }
+
+  async function transfer(){
+    let inputStr = document.getElementById('transfer_to_address').value;
+    // let tokenId = ethers.utils.parseUnits(document.getElementById('transfer_tokenid').value);
+    let tokenId = document.getElementById('transfer_tokenid').value;
+    console.log(inputStr);
+
+    const signer=provider.getSigner();
+    const yiNFT = new ethers.Contract(yiNFT_addr, yiNFTAbi, signer); 
+    const owner_address = await yiNFT.ownerOf(tokenId);
+    if(owner_address != await signer.getAddress()){
+      alert("请输入自己的tokenID~");
+      return false;
+    }
+    const re = await yiNFT.transferFrom(owner_address,inputStr,tokenId);
+    // document.getElementById("retrieve_info").innerText='number:'+re;
+ // 监控事件，对结果进行处理
+    yiNFT.on("Transfer",(from, to, tokenId)=>{
+      document.getElementById("nft_retrieve_info").innerText=document.getElementById("nft_retrieve_info").innerText + 
+      '\r\n Transfer: from=>'+from+ ' to => '+to+ ' tokenId => '+tokenId;
+    });
+  }
+  
+  async function mint(){
+    const signer=provider.getSigner();
+    const yiNFT = new ethers.Contract(yiNFT_addr, yiNFTAbi, signer); 
+
+    const re = await yiNFT.mint(signer.getAddress(),"");
+    // document.getElementById("retrieve_info").innerText='number:'+re;
+ // 监控事件，对结果进行处理
+    yiNFT.on("Minted",(to, tokenId, tokenURI)=>{
+      document.getElementById("nft_retrieve_info").innerText=document.getElementById("nft_retrieve_info").innerText + 
+      '\r\n Minted: to=>'+to+ ' tokenId => '+tokenId+ ' tokenURI => '+tokenURI;
+    });
+    yiNFT.on("Transfer",(from, to, tokenId)=>{
+      document.getElementById("nft_retrieve_info").innerText=document.getElementById("nft_retrieve_info").innerText + 
+      '\r\n Transfer: from=>'+from+ ' to => '+to+ ' tokenId => '+tokenId;
+    });
+  }
+</script>
