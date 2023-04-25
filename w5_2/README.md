@@ -1,13 +1,3 @@
-# Sample Hardhat Project
+本地使用hardhat测试时需要注意，启动测试脚本时需要指定网络：
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a script that deploys that contract.
-
-Try running some of the following tasks:
-
-```shell
-npx hardhat help
-npx hardhat test
-REPORT_GAS=true npx hardhat test
-npx hardhat node
-npx hardhat run scripts/deploy.js
-```
+npx hardhat test --network dev
