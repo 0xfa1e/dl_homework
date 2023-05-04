@@ -16,7 +16,7 @@ contract YITokenMarket {
     address yiToken;
     address sushi;
     address masterChef;
-    uint public depositd;
+    mapping(address => uint) public depositd;
 
     error InvaliedInitParam(); 
 
@@ -76,20 +76,24 @@ contract YITokenMarket {
 
         IERC20(yiToken).safeApprove(masterChef,amountToken);
         IMasterChef(masterChef).deposit(0, amountToken);
-        depositd += amountToken;
-        console.log("byTokenAndDeposit masterChef depositd yiToken:",depositd);
+        depositd[msg.sender] += amountToken;
+        console.log("byTokenAndDeposit masterChef depositd yiToken:",depositd[msg.sender]);
     }
 
     function withdraw() public {
-        uint amountYiToken = depositd;
-        depositd = 0;
-        IMasterChef(masterChef).withdraw(0, amountYiToken);
-        IERC20(yiToken).safeTransfer(msg.sender, amountYiToken);
-        console.log("yiToken balanceOf msg.sender:",IERC20(yiToken).balanceOf(msg.sender));
+        uint amountYiToken = depositd[msg.sender];
+        console.log("depositd:", amountYiToken);
+        if(amountYiToken > 0) {
+            depositd[msg.sender] = 0;
+            IMasterChef(masterChef).withdraw(0, amountYiToken);
+            IERC20(yiToken).safeTransfer(msg.sender, amountYiToken);
+            console.log("yiToken balanceOf msg.sender:",IERC20(yiToken).balanceOf(msg.sender));
 
-        uint amountSushi = IERC20(sushi).balanceOf(address(this));
-        IERC20(sushi).safeTransfer(msg.sender, amountSushi);
-        console.log("sushi balanceOf msg.sender:",IERC20(sushi).balanceOf(msg.sender));
+            uint amountSushi = IERC20(sushi).balanceOf(address(this));
+            IERC20(sushi).safeTransfer(msg.sender, amountSushi);
+            console.log("sushi balanceOf msg.sender:",IERC20(sushi).balanceOf(msg.sender));
+        }
+        
 
     }
 }
